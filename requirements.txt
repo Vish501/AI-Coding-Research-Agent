@@ -1,0 +1,9 @@
+ipykernel==6.29.5             # Jupyter kernel
+notebook==7.4.3               # Jupyter Notebook UI
+
+mcp
+langchain
+langgraph
+dotenv
+langchain-mcp-adapters
+firecrawl
