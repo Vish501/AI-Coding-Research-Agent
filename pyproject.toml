@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Code-Researcher-Agent"
+version = "0.0.1"
+authors = [
+    { name="Vish501" }
+]
+description = "Code Research Agent"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.urls]
+Homepage = "https://github.com/Vish501/AI-Coding-Research-Agent"
+Issues = "https://github.com/Vish501/AI-Coding-Research-Agent/issues"
