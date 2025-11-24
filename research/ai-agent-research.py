@@ -42,7 +42,6 @@ server_params = StdioServerParameters(
     args=["firecrawl-mcp"]
 )
 
-
 # =============================================================================
 # STATE DEFINITION
 # =============================================================================
@@ -50,7 +49,6 @@ server_params = StdioServerParameters(
 class AgentState(TypedDict):
     """State for the agent"""
     messages: Annotated[Sequence[BaseMessage], add_messages]
-
 
 # =============================================================================
 # GRAPH NODES
@@ -72,7 +70,6 @@ async def call_model(state: AgentState) -> dict:
     messages = state["messages"]
     response = await llm.ainvoke(messages)
     return {"agent": [response]}
-
 
 # =============================================================================
 # GRAPH CONSTRUCTION
