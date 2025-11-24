@@ -9,6 +9,15 @@ from mcp.client.stdio import stdio_client
 from langchain_mcp_adapters.tools import load_mcp_tools
 from dotenv import load_dotenv
 
+# Saving PDF related packages
+from langchain.tools import tool 
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+from pathlib import Path
+from datetime import datetime
+
+
 import asyncio
 import os
 
@@ -71,6 +80,59 @@ async def call_model(state: AgentState) -> dict:
     response = await llm.ainvoke(messages)
     return {"agent": [response]}
 
+@tool
+async def save_last_message_to_pdf(state: AgentState) -> None:
+    """
+    Saves plain text content into a PDF document.
+
+    Parameters
+    text_output str: The text content to write into the PDF.
+    
+    output_pdf_path Union[Path, str]: The destination path where the PDF should be saved.
+
+    Notes
+    - Automatically creates parent directories.
+    - Converts Windows Path objects to strings for ReportLab compatibility.
+    - Handles multi-line text safely by splitting into Paragraphs.
+    """
+    # Create timestamp for the filename (UTC-friendly)
+    utc_timestamp = datetime.now().strftime(f"%Y-%m-%d_%H-%M-%S")
+
+    # Directory where reports will be stored
+    save_dir = Path(working_directory) / "research" / "reports"
+
+    # Generate a descriptive file name
+    save_path = save_dir / (f"ollama_response - {utc_timestamp}.pdf")
+
+    # Ensure directory exists, else create it
+    create_directories([save_path.parent], verbose=False)
+
+    try:
+        # Get last text from AgentState
+        text_output = state["messages"][-1].content
+
+        # Create PDF document
+        doc = SimpleDocTemplate(str(save_path), pagesize=letter)
+        styles = getSampleStyleSheet()
+
+        # Split text into paragraphs
+        story = []
+        for line in text_output.split("\n"):
+            clean_line = line.strip()
+            if clean_line:
+                story.append(Paragraph(clean_line, styles["Normal"]))
+
+        if not story:
+            raise ValueError("No valid text content to write to PDF.")
+
+        # Write PDF to disk
+        doc.build(story)
+
+        logger.info(f"PDF successfully saved: {save_path}")
+        
+    except Exception as e:
+        logger.error(f"Unable to save PDF file: {e}")
+
 # =============================================================================
 # GRAPH CONSTRUCTION
 # =============================================================================
@@ -124,8 +186,11 @@ async def main():
         async with ClientSession(read, write) as session:
             await session.initialize()
 
-            # Load tools and create agent
+            # Load tools
             tools = await load_mcp_tools(session)
+            tools.append(save_last_message_to_pdf)
+
+            # Create agent with tools
             agent = create_research_agent(tools)
 
             # Initialize conversation state
@@ -186,3 +251,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n\nShutdown requested.")
+    
