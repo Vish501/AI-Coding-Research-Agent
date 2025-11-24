@@ -1,6 +1,12 @@
 ipykernel==6.29.5             # Jupyter kernel
 notebook==7.4.3               # Jupyter Notebook UI
 
+joblib==1.5.1                 # Parallel processing
+typeguard==4.4.4              # Runtime type validation
+python-box==6.0.2             # Dot-access dictionaries
+pyYAML==6.0.2                 # YAML parsing
+types-PyYAML==6.0.12.20250516 # Type stubs for PyYAML
+
 mcp
 langchain
 langgraph
