@@ -1,26 +1,38 @@
+# Standard library imports
+import asyncio
+import os
+from datetime import datetime
+from pathlib import Path
 from typing import Annotated, TypedDict, Sequence
+
+# Environment variable loading
+from dotenv import load_dotenv
+
+# LangChain core message types
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
-from langgraph.graph.message import add_messages
+
+# LangGraph workflow components
 from langgraph.graph import StateGraph, END
+from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
+
+# LLM provider (Ollama integration)
 from langchain_ollama import ChatOllama
+
+# MCP (Model Context Protocol) client tools & connectivity
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from langchain_mcp_adapters.tools import load_mcp_tools
-from dotenv import load_dotenv
 
-# Saving PDF related packages
-from langchain.tools import tool 
+# Tool decorator for exposing functions to LangChain
+from langchain.tools import tool
+
+# PDF generation (ReportLab)
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
-from pathlib import Path
-from datetime import datetime
+from reportlab.platypus import SimpleDocTemplate, Paragraph
 
-
-import asyncio
-import os
-
+# Project utility imports
 from CodeResearcher.utils.common import create_directories
 from CodeResearcher.utils.logger import get_logger
 
