@@ -86,12 +86,6 @@ def should_continue(state: AgentState) -> str:
     # Otherwise, end the conversation
     return END
 
-async def call_model(state: AgentState) -> dict:
-    """Call the LLM with the current state."""
-    messages = state["messages"]
-    response = await llm.ainvoke(messages)
-    return {"agent": [response]}
-
 @tool
 async def save_last_message_to_pdf(state: AgentState) -> None:
     """
