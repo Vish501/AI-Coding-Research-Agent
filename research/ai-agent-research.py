@@ -90,12 +90,7 @@ def should_continue(state: AgentState) -> str:
 async def save_last_message_to_pdf(state: AgentState) -> None:
     """
     Saves plain text content into a PDF document.
-
-    Parameters
-    text_output str: The text content to write into the PDF.
     
-    output_pdf_path Union[Path, str]: The destination path where the PDF should be saved.
-
     Notes
     - Automatically creates parent directories.
     - Converts Windows Path objects to strings for ReportLab compatibility.
