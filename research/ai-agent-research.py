@@ -87,10 +87,17 @@ def should_continue(state: AgentState) -> str:
     return END
 
 @tool
-async def save_last_message_to_pdf(state: AgentState) -> None:
+async def save_last_message_to_pdf(content: str, filename: str = None) -> None:
     """
-    Saves plain text content into a PDF document.
+    Saves text content to a PDF file.
     
+    Args:
+    - content: The text content to save
+    - filename: Optional custom filename (without extension)
+    
+    Returns:
+    - Success message with file path
+
     Notes
     - Automatically creates parent directories.
     - Converts Windows Path objects to strings for ReportLab compatibility.
@@ -103,22 +110,22 @@ async def save_last_message_to_pdf(state: AgentState) -> None:
     save_dir = Path(working_directory) / "research" / "reports"
 
     # Generate a descriptive file name
-    save_path = save_dir / (f"ollama_response - {utc_timestamp}.pdf")
+    if filename:
+        save_path = save_dir / f"{filename}.pdf"
+    else:
+        save_path = save_dir / f"ollama_response - {utc_timestamp}.pdf"
 
     # Ensure directory exists, else create it
     create_directories([save_path.parent], verbose=False)
 
     try:
-        # Get last text from AgentState
-        text_output = state["messages"][-1].content
-
         # Create PDF document
         doc = SimpleDocTemplate(str(save_path), pagesize=letter)
         styles = getSampleStyleSheet()
 
         # Split text into paragraphs
         story = []
-        for line in text_output.split("\n"):
+        for line in content.split("\n"):
             clean_line = line.strip()
             if clean_line:
                 story.append(Paragraph(clean_line, styles["Normal"]))
@@ -183,68 +190,82 @@ def create_research_agent(tools):
 # =============================================================================
 
 async def main():
-    async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
+    print("\n🚀 Starting Coding Research Agent...")
+    print("=" * 60)
+    
+    try:
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
 
-            # Load tools
-            tools = await load_mcp_tools(session)
-            tools.append(save_last_message_to_pdf)
+                # Load tools
+                mcp_tools = await load_mcp_tools(session)
+                custom_tools = [save_last_message_to_pdf]
+                tools = mcp_tools + custom_tools
 
-            # Create agent with tools
-            agent = create_research_agent(tools)
+                # Create agent with tools
+                agent = create_research_agent(tools)
 
-            # Initialize conversation state
-            messages = [
-                SystemMessage(
-                    content=("You are a helpful assistant that can scrape websites, crawl pages, and extract data using Firecrawl tools. Think step by step and use the appropriate tools to help the user.",
-                    ))
-            ]
+                # Initialize conversation state
+                messages = [
+                    SystemMessage(
+                        content=("You are a helpful assistant that can scrape websites, crawl pages, and extract data using Firecrawl tools. Think step by step and use the appropriate tools to help the user.",
+                        ))
+                ]
 
-            # Print available tools to the user
-            print("\nAvailable Tools:", ", ".join([tool.name for tool in tools]))
-            print("-" * 60)
-            print("Type 'quit' to exit.")
+                # Print available tools to the user
+                print("Available Tools:", ", ".join([tool.name for tool in tools]))
+                print("-" * 60)
+                print("Type 'quit' to exit.")
 
-            while True:
-                try:
-                    user_input = input("\nYou: ").strip()
-                    if user_input.lower() in ["quit", "exit", "q"]:
-                        print("Goodbye!")
+                while True:
+                    try:
+                        user_input = input("\nYou: ").strip()
+                        if user_input.lower() in ["quit", "exit", "q"]:
+                            print("Goodbye!")
+                            break
+
+                        if not user_input:
+                            print("Agent: Invalid Query.")
+                            continue
+
+                        # Add user message to state
+                        messages.append(HumanMessage(content=user_input[:100_000]))
+
+                        # Streaming output
+                        print("Agent: ", end="", flush=True)
+
+                        # Stream
+                        final_message = None
+
+                        async for event in agent.astream({"messages": messages}, stream_mode="values"):
+                            if "messages" in event:
+                                final_message = event["messages"]
+                                last_msg = final_message[-1]
+                                if isinstance(last_msg, AIMessage):
+                                    if last_msg.content and not last_msg.tool_calls:
+                                        print(last_msg.content, flush=True)
+                        
+                        # Update messages with final state
+                        if final_message:
+                            messages = final_message
+
+                    except KeyboardInterrupt as ki:
+                        logger.error(f"Error during agent execution: {ki}")
+                        print("\n\nInterrupted. Goodbye!")
                         break
 
-                    if not user_input:
-                        print("Agent: Invalid Query.")
-                        continue
+                    except Exception as e:
+                        print(f"Error: {e}")
 
-                    # Add user message to state
-                    messages.append(HumanMessage(content=user_input[:100_000]))
-
-                    # Streaming output
-                    print("Agent: ", end="", flush=True)
-
-                    # Stream
-                    async for event in agent.astream(
-                        {"messages": messages},
-                        stream_mode="values"
-                    ):
-                        if "messages" in event:
-                            last_msg = event["messages"][-1]
-                            if isinstance(last_msg, AIMessage):
-                                if last_msg.content and not last_msg.tool_calls:
-                                    print(last_msg.content, flush=True)
-                    
-                    # Update messages with final state
-                    result = await agent.ainvoke({"messages": messages})
-                    messages = result["messages"]
-
-                except KeyboardInterrupt:
-                    logger.error(f"Error during agent execution: {e}")
-                    print("\n\n Interrupted. Goodbye!")
-                    break
-
-                except Exception as e:
-                    print(f"Error: {e}")
+    except Exception as e:
+        logger.error(f"Failed to initialize agent: {e}", exc_info=True)
+        print(f"\n Failed to start agent: {e}")
+        print("\nTroubleshooting:")
+        print("1. Ensure Node.js and npx are installed")
+        print("2. Verify FIRECRAWL_API_KEY in .env file")
+        print("3. Check internet connectivity")
+        print("4. Try: npm install -g @mendable/firecrawl-mcp")
 
 
 if __name__ == "__main__":
